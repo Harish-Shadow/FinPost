@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>My App</title>
+        <%- include("partials/head") %>
+    </head>
+    <body>
+        <%- include("partials/header") %>
+
+        <div id="react-root"></div> <!-- React Root for Toast -->
+
+        <main>
+            <form action="/register" method="POST"
+                onsubmit="return validatePassword()">
+                <% if (errors.length > 0) { %>
+                <% errors.forEach(error => { %>
+                <p class="notice"><%= error %></p>
+                <% }); %>
+                <% } %>
+
+                <fieldset>
+                    <legend>Create an Account</legend>
+
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password"
+                        required>
+
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword"
+                        name="confirmPassword" required>
+
+                    <p id="passwordError" style="color: red;"></p>
+                </fieldset>
+
+                <button type="submit" class="btn btn-primary">Register</button>
+            </form>
+        </main>
+
+        <%- include("partials/footer") %>
+
+        <!-- Client-side JavaScript Validation -->
+        <script>
+        function validatePassword() {
+            const password = document.getElementById("password").value;
+            const confirmPassword = document.getElementById("confirmPassword").value;
+            const passwordError = document.getElementById("passwordError");
+
+            if (password !== confirmPassword) {
+                passwordError.textContent = "Passwords do not match!";
+                return false; // Prevent form submission
+            }
+
+            passwordError.textContent = ""; // Clear error if passwords match
+            return true;
+        }
+    </script>
+    </body>
+</html>

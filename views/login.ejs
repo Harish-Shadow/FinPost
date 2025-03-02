@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+    <%- include("partials/head") %>
+    <body>
+        <%- include("partials/header") %>
+
+        <main>
+            <form action="/login" method="POST">
+                <% if (errors.length > 0) { %>
+                <% errors.forEach(error => { %>
+                <p class="notice"><%= error %></p>
+                <% }); %>
+                <% } %>
+
+                <fieldset>
+                    <legend>Login In</legend>
+
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password"
+                        required>
+
+                </fieldset>
+                <button href type="submit"
+                    class="btn btn-primary">Login </button>
+            </form>
+        </main>
+        <%- include("partials/footer") %>
+    </body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+    <%- include("partials/head") %>
+    <body>
+        <%- include("partials/header") %>
+
+        <main class="dashboard-container">
+            <p>Hello <%= username %></p>
+
+            <% if (posts.length > 0) { %>
+            <div class="post-list">
+                <% posts.forEach(post => { %>
+                <article class="post-card">
+                    <h3>
+                        <a href="/posts/<%= post.id %>"><%= post.title %></a>
+                    </h3>
+                    <p class="post-meta">by <strong><%= post.username
+                            %></strong> on <%= post.createDate %></p>
+                    <p class="post-content-preview">
+                        <%= post.content.length > 100 ?
+                        post.content.substring(0, 100) + "..." : post.content %>
+                    </p>
+                </article>
+
+                <% }); %>
+            </div>
+            <% } else { %>
+            <p class="no-posts">No posts available yet.</p>
+            <% } %>
+        </main>
+
+        <%- include("partials/footer") %>
+    </body>
+</html>
