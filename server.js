@@ -12,7 +12,7 @@ const db = new Database("ourApp.db");
 db.pragma("journal_mode = WAL");
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5001;
 
 // Create users & posts tables if they don't exist
 const createTables = db.transaction(() => {
