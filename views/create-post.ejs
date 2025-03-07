@@ -4,29 +4,32 @@
     <body>
         <%- include("partials/header") %>
 
-        <main>
-            <form action="/create-post" method="POST">
+        <main class="container mt-4">
+            <div class="card shadow-lg p-4">
+                <h2 class="text-center">Create a New Post</h2>
+
                 <% if (errors.length > 0) { %>
-                <% errors.forEach(error => { %>
-                <p class="notice"><%= error %></p>
-                <% }); %>
+                    <% errors.forEach(error => { %>
+                        <div class="alert alert-danger"><%= error %></div>
+                    <% }); %>
                 <% } %>
 
-                <fieldset>
-                    <legend>Create a New Post</legend>
+                <form action="/create-post" method="POST">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" id="title" name="title" class="form-control" required>
+                    </div>
 
-                    <label for="title">Title</label>
-                    <input type="text" id="title" name="title" required>
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Content</label>
+                        <textarea name="content" id="content" class="form-control" rows="5" required></textarea>
+                    </div>
 
-                    <label for="body"><small>Content</small></label>
-                    <textarea name ="body" id="body"></textarea>
-                    
-
-                </fieldset>
-                <button href type="submit"
-                    class="btn btn-primary">Save New Post </button>
-            </form>
+                    <button type="submit" class="btn btn-primary w-100">Save New Post</button>
+                </form>
+            </div>
         </main>
+
         <%- include("partials/footer") %>
     </body>
 </html>

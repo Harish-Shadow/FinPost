@@ -4,13 +4,10 @@
         <% if (username) { %>
             <p>Hello, <%= username %></p>
             <a href="/create-post">Create Post</a>
+            <a href="/profile">Settings</a> <!-- 👈 Added Settings Button -->
             <a href="/logout">Log Out</a>
         <% } else { %>
-            <% if (typeof page !== "undefined" && page === "login") { %>
-                <a href="/" class="signup-btn">Sign Up</a> 
-            <% } else { %>
-                <a href="/login">Log In</a> 
-            <% } %>
+            
         <% } %>
     </nav>
 </header>

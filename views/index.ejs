@@ -2,59 +2,84 @@
 <html lang="en">
 
     <%- include("partials/head") %>
-
-    <body>
+    
+    <body class="bg-light">
         <%- include("partials/header") %>
 
-        <div id="react-root"></div> <!-- React Root for Toast -->
+        <div class="container d-flex justify-content-center align-items-center min-vh-100">
+            <div class="card shadow p-4 rounded" style="max-width: 400px; width: 100%;">
+                <h3 class="text-center mb-3">Create an Account</h3>
 
-        <main>
-            <form action="/register" method="POST"
-                onsubmit="return validatePassword()">
                 <% if (errors.length > 0) { %>
-                <% errors.forEach(error => { %>
-                <p class="notice"><%= error %></p>
-                <% }); %>
+                    <div class="alert alert-danger">
+                        <% errors.forEach(error => { %>
+                            <p class="mb-0"><%= error %></p>
+                        <% }); %>
+                    </div>
                 <% } %>
 
-                <fieldset>
-                    <legend>Create an Account</legend>
+                <form action="/register" method="POST" onsubmit="return validatePassword()">
+                    
+                    <!-- Username -->
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="text" id="username" name="username" class="form-control" required>
+                        </div>
+                    </div>
 
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required>
+                    <!-- Password -->
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                            <input type="password" id="password" name="password" class="form-control" required>
+                        </div>
+                    </div>
 
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password"
-                        required>
+                    <!-- Confirm Password -->
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                            <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" required>
+                        </div>
+                        <p id="passwordError" class="text-danger mt-1"></p>
+                    </div>
 
-                    <label for="confirmPassword">Confirm Password</label>
-                    <input type="password" id="confirmPassword"
-                        name="confirmPassword" required>
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-primary w-100">Register</button>
 
-                    <p id="passwordError" style="color: red;"></p>
-                </fieldset>
-
-                <button type="submit" class="btn btn-primary">Register</button>
-            </form>
-        </main>
+                    <!-- Login Redirect -->
+                    <div class="text-center mt-3">
+                        <small>Already have an account? <a href="/login">Log in</a></small>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <%- include("partials/footer") %>
 
-        <!-- Client-side JavaScript Validation -->
+        <!-- Password Validation Script -->
         <script>
-        function validatePassword() {
-            const password = document.getElementById("password").value;
-            const confirmPassword = document.getElementById("confirmPassword").value;
-            const passwordError = document.getElementById("passwordError");
+            function validatePassword() {
+                const password = document.getElementById("password").value;
+                const confirmPassword = document.getElementById("confirmPassword").value;
+                const passwordError = document.getElementById("passwordError");
 
-            if (password !== confirmPassword) {
-                passwordError.textContent = "Passwords do not match!";
-                return false; // Prevent form submission
+                if (password !== confirmPassword) {
+                    passwordError.textContent = "Passwords do not match!";
+                    return false;
+                }
+
+                passwordError.textContent = ""; // Clear error message
+                return true;
             }
+        </script>
+        
+        <!-- Bootstrap Icons -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 
-            passwordError.textContent = ""; // Clear error if passwords match
-            return true;
-        }
-    </script>
     </body>
 </html>

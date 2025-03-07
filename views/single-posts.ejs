@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
     <%- include("partials/head") %>
 
     <body>
@@ -11,33 +10,25 @@
 
             <article>
                 <%
-                let postDate = new Date(post.createDate || 0); // Prevents
-                'Invalid Date' issues
-                let formattedDate = isNaN(postDate) ? "Unknown Date" :
-                `${postDate.getMonth() +
-                1}/${postDate.getDate()}/${postDate.getFullYear()}`;
+                let postDate = new Date(post.createDate || 0);
+                let formattedDate = isNaN(postDate) ? "Unknown Date" : 
+                `${postDate.getMonth() + 1}/${postDate.getDate()}/${postDate.getFullYear()}`;
                 %>
 
-                <small>Posted by <%= post.username %> on <%= formattedDate
-                    %></small>
+                <small>Posted by <%= post.author?.username || "Unknown" %> on <%= formattedDate %></small>
 
                 <div>
-                    <%- post.content ? filterUserHTML(post.content) :
-                    "No content available." %>
+                    <%- post.content ? filterUserHTML(post.content) : "No content available." %>
                 </div>
             </article>
 
             <% if (post.authorid == user?.userid) { %>
-            <a href="/edit-post/<%= post.id %>" class="button">Edit post</a>
+                <a href="/edit-post/<%= post.id %>" class="button">Edit post</a>
 
-            <form style="display: inline;" action="/delete-post/<%= post.id %>"
-                method="POST">
-                <button type="submit" class="button">Delete post</button>
-            </form>
-            <% } else { %>
-            <p></p>
+                <form style="display: inline;" action="/delete-post/<%= post.id %>" method="POST">
+                    <button type="submit" class="button">Delete post</button>
+                </form>
             <% } %>
-
         </main>
 
         <%- include("partials/footer") %>

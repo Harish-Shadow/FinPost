@@ -1,62 +1,72 @@
 require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
-const sanitizeHTML = require("sanitize-html");
-const marked = require("marked");
 const bcrypt = require("bcryptjs");
 const cookieParser = require("cookie-parser");
-const express = require("express");
-const Database = require("better-sqlite3");
-
-// Initialize the database
-const db = new Database("ourApp.db");
-db.pragma("journal_mode = WAL");
-
+const sanitizeHTML = require("sanitize-html");
+const marked = require("marked");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 5001;
+const User = require("../models/User"); // Ensure you have a User model
 
-// Create users & posts tables if they don't exist
-const createTables = db.transaction(() => {
-  db.prepare(
-    `CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-    )`
-  ).run();
+// Ensure Upload Directory Exists
+const uploadDir = "./public/uploads/";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
-  db.prepare(
-    `CREATE TABLE IF NOT EXISTS posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        createDate TEXT,
-        title TEXT NOT NULL,
-        content TEXT NOT NULL,
-        authorid INTEGER NOT NULL,
-        FOREIGN KEY (authorid) REFERENCES users(id)
-    )`
-  ).run();
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
 });
 
-// Run the table creation function
-createTables();
+// Define User Schema
+const userSchema = new mongoose.Schema({
+  username: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
+  profileImage: { type: String, default: "/images/default-avatar.png" }, // ✅ Added profileImage field
+});
 
-// Set EJS as the view engine
+const User = mongoose.model("User", userSchema);
+
+// Define Post Schema
+const postSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  content: { type: String, required: true },
+  createDate: { type: Date, default: Date.now },
+  author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+});
+
+const Post = mongoose.model("Post", postSchema);
+
+// Multer Storage Configuration
+const storage = multer.diskStorage({
+  destination: "./public/uploads/",
+  filename: (req, file, cb) => {
+    cb(null, req.user._id + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage });
+
+// Middleware
 app.set("view engine", "ejs");
-
-// Serve static files
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cookieParser());
 
-// Middleware to initialize user session
-app.use((req, res, next) => {
-  res.locals.filterUserHTML = function (content) {
+// Middleware to Handle User Authentication
+app.use(async (req, res, next) => {
+  res.locals.filterUserHTML = (content) => {
     return sanitizeHTML(marked.parse(content), {
       allowedTags: ["h1", "h2", "h3", "p", "ul", "ol", "li", "strong", "em", "a", "img"],
-      allowedAttributes: {
-        a: ["href"],
-        img: ["src", "alt"]
-      }
+      allowedAttributes: { a: ["href"], img: ["src", "alt"] },
     });
   };
 
@@ -65,175 +75,155 @@ app.use((req, res, next) => {
   try {
     if (req.cookies.overSimpleApp) {
       const decoded = jwt.verify(req.cookies.overSimpleApp, process.env.JWTSECRET);
-      req.user = decoded;
-    } else {
-      req.user = null;
+      req.user = await User.findById(decoded.userid);
     }
   } catch (error) {
     req.user = null;
   }
 
   res.locals.username = req.user ? req.user.username : null;
+  res.locals.user = req.user || null;
   next();
 });
 
 // Routes
 app.get("/", (req, res) => {
   if (req.user) return res.redirect("/dashboard");
-  res.render("index", { username: null, errors: [], page: "home" });
+  res.render("index", { username: null, errors: [], user: req.user });
 });
 
-app.get("/login", (req, res) => {
-  res.render("login", { errors: [], page: "login" });
-});
-
-app.get("/register", (req, res) => {
-  res.render("register", { errors: [], page: "register" });
-});
-
+app.get("/register", (req, res) => res.render("index", { errors: [], user: req.user }));
+app.get("/login", (req, res) => res.render("login", { errors: [], user: req.user }));
 app.get("/logout", (req, res) => {
   res.clearCookie("overSimpleApp");
   res.redirect("/login");
 });
 
-app.get("/dashboard", (req, res) => {
-  if (!req.user) {
-    return res.redirect("/");
-  }
-
-  const postsStatement = db.prepare(
-    "SELECT posts.*, users.username FROM posts INNER JOIN users ON posts.authorid = users.id WHERE users.id = ? ORDER BY posts.createDate DESC"
-  );
-
-  const posts = postsStatement.all(req.user.userid);
-
-  res.render("dashboard", {
-    username: req.user.username,
-    posts,
-    page: "dashboard",
-  });
-});
-
-
-
-// Middleware for post validation
-function sharedPostValidation(req, res) {
-  const errors = [];
-
-  if (typeof req.body.title !== "string") req.body.title = "";
-  if (typeof req.body.body !== "string") req.body.body = ""; // ✅ Fix: use "content" instead of "body"
-
-  req.body.title = sanitizeHTML(req.body.title.trim(), { allowedTags: [], allowedAttributes: {} });
-  req.body.body = sanitizeHTML(req.body.body.trim(), { allowedTags: [], allowedAttributes: {} });
-
-  if (!req.body.title) errors.push("You must provide a title.");
-  if (!req.body.body) errors.push("You must provide content.");
-
-  return errors;
-}
-
-// Middleware to check authentication
+// Middleware to Check Authentication
 function mustBeLoggedIn(req, res, next) {
   if (!req.user) return res.redirect("/");
   next();
 }
 
+// Dashboard Route (Fixed)
+app.get("/dashboard", mustBeLoggedIn, async (req, res) => {
+  const posts = await Post.find({ author: req.user._id })
+    .populate("author", "username profileImage") // ✅ Includes profileImage
+    .sort({ createDate: -1 });
+
+  res.render("dashboard", { username: req.user.username, posts, user: req.user });
+});
+
+// Create Post
 app.get("/create-post", mustBeLoggedIn, (req, res) => {
-  res.render("create-post", { errors: [], page: "create-post" });
+  res.render("create-post", { errors: [], user: req.user });
 });
 
-// ✅ Fixed: Handle post creation correctly
-app.post("/create-post", mustBeLoggedIn, (req, res) => {
-  const errors = sharedPostValidation(req, res);
+app.post("/create-post", mustBeLoggedIn, async (req, res) => {
+  if (!req.body.title || !req.body.content)
+    return res.render("create-post", { errors: ["All fields are required"], user: req.user });
 
-  if (errors.length) {
-    return res.render("create-post", { errors, page: "create-post" });
-  }
-
-  console.log("Creating post with data:", req.body);
-
-  const statement = db.prepare(
-    `INSERT INTO posts (title, content, authorid, createDate) VALUES (?, ?, ?, ?)`
-  );
-
-  try {
-    const result = statement.run(
-      req.body.title,
-      req.body.body, // ✅ Ensure 'content' is passed here
-      req.user.userid,
-      new Date().toISOString()
-    );
-
-    res.redirect(`/dashboard`);
-  } catch (error) {
-    console.error("Database insert error:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
-
-// ✅ Fixed: Render edit post page
-app.get("/edit-post/:id", mustBeLoggedIn, (req, res) => {
-  const post = db.prepare("SELECT * FROM posts WHERE id = ?").get(req.params.id);
-
-  if (!post) return res.status(404).send("Post not found.");
-  if (post.authorid !== req.user.userid) return res.status(403).send("Unauthorized.");
-
-  res.render("edit-post", { post });
-});
-
-// ✅ Fixed: Update post
-app.post("/update-post/:id", mustBeLoggedIn, (req, res) => {
-  const post = db.prepare("SELECT * FROM posts WHERE id = ?").get(req.params.id);
-
-  if (!post) return res.status(404).send("Post not found.");
-  if (post.authorid !== req.user.userid) return res.status(403).send("Unauthorized.");
-
-  db.prepare("UPDATE posts SET title = ?, content = ? WHERE id = ?").run(
-    req.body.title,
-    req.body.body,
-    req.params.id
-  );
-
-  res.redirect(`/posts/${req.params.id}`);
-});
-
-// ✅ Fixed: Delete post
-app.post("/delete-post/:id", mustBeLoggedIn, (req, res) => {
-  const post = db.prepare("SELECT * FROM posts WHERE id = ?").get(req.params.id);
-
-  if (!post) return res.status(404).send("Post not found.");
-  if (post.authorid !== req.user.userid) return res.status(403).send("Unauthorized.");
-
-  db.prepare("DELETE FROM posts WHERE id = ?").run(req.params.id);
-
-  res.redirect("/");
-});
-
-// ✅ Fixed: View single post
-app.get("/posts/:id", (req, res) => {
-  const post = db.prepare(
-    "SELECT posts.*, users.username FROM posts INNER JOIN users ON posts.authorid = users.id WHERE posts.id = ?"
-  ).get(req.params.id);
-
-  if (!post) return res.status(404).send("Post not found.");
-
-  res.render("single-posts", { post, user: req.user });
-});
-
-// ✅ Fixed: Login route
-app.post("/login", (req, res) => {
-  const user = db.prepare("SELECT * FROM users WHERE username = ?").get(req.body.username);
-  if (!user || !bcrypt.compareSync(req.body.password, user.password)) {
-    return res.render("login", { errors: ["Invalid credentials"], page: "login" });
-  }
-
-  const token = jwt.sign({ userid: user.id, username: user.username }, process.env.JWTSECRET, { expiresIn: "7d" });
-  res.cookie("overSimpleApp", token, { httpOnly: true });
-
+  await new Post({ title: req.body.title, content: req.body.content, author: req.user._id }).save();
   res.redirect("/dashboard");
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+app.post("/update-profile", async (req, res) => {
+  try {
+    const { username, nickname } = req.body;
+    const userId = req.session.userId; // Assuming user session stores their ID
+
+    if (!userId) {
+      return res.status(401).send("Unauthorized: Please log in");
+    }
+
+    // Find the user and update their profile
+    await User.findByIdAndUpdate(userId, { username, nickname });
+
+    // Redirect to profile page after update
+    res.redirect("/profile");
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).send("Server Error");
+  }
 });
+// View Single Post
+app.get("/posts/:id", async (req, res) => {
+  const post = await Post.findById(req.params.id).populate("author", "username profileImage"); // ✅ Includes profileImage
+  if (!post) return res.status(404).send("Post not found.");
+  res.render("single-posts", { post, user: req.user });
+});
+
+// Edit Post
+app.get("/edit-post/:id", mustBeLoggedIn, async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  if (!post || post.author.toString() !== req.user._id.toString())
+    return res.status(403).send("Unauthorized.");
+  res.render("edit-post", { post, user: req.user });
+});
+
+// Update Post
+app.post("/update-post/:id", mustBeLoggedIn, async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  if (!post || post.author.toString() !== req.user._id.toString())
+    return res.status(403).send("Unauthorized.");
+
+  post.title = req.body.title;
+  post.content = req.body.content;
+  await post.save();
+  res.redirect(`/posts/${req.params.id}`);
+});
+
+// Delete Post
+app.post("/delete-post/:id", mustBeLoggedIn, async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  if (!post || post.author.toString() !== req.user._id.toString())
+    return res.status(403).send("Unauthorized.");
+  await post.deleteOne();
+  res.redirect("/dashboard");
+});
+
+// Upload Profile Picture
+app.post("/upload-profile-image", mustBeLoggedIn, upload.single("profileImage"), async (req, res) => {
+  if (!req.file) return res.redirect("/profile");
+
+  // Update DB
+  await User.findByIdAndUpdate(req.user._id, { profileImage: "/uploads/" + req.file.filename });
+
+  // Update Session Data
+  req.user.profileImage = "/uploads/" + req.file.filename;
+
+  res.redirect("/profile");
+});
+
+// Profile Page
+app.get("/profile", mustBeLoggedIn, (req, res) => {
+  res.render("profile", { errors: [], user: req.user });
+});
+
+// Register User
+app.post("/register", async (req, res) => {
+  if (!req.body.username || !req.body.password)
+    return res.render("register", { errors: ["All fields required"], user: req.user });
+
+  const hashedPassword = bcrypt.hashSync(req.body.password, 10);
+  try {
+    await new User({ username: req.body.username, password: hashedPassword }).save();
+    res.redirect("/login");
+  } catch (error) {
+    res.render("register", { errors: ["Username already exists"], user: req.user });
+  }
+});
+
+// Login User
+app.post("/login", async (req, res) => {
+  const user = await User.findOne({ username: req.body.username });
+  if (!user || !bcrypt.compareSync(req.body.password, user.password))
+    return res.render("login", { errors: ["Invalid credentials"], user: req.user });
+
+  const token = jwt.sign({ userid: user._id, username: user.username }, process.env.JWTSECRET, { expiresIn: "7d" });
+  res.cookie("overSimpleApp", token, { httpOnly: true });
+  res.redirect("/dashboard");
+});
+
+// Start Server
+app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));

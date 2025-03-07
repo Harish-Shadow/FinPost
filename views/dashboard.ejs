@@ -4,28 +4,68 @@
     <body>
         <%- include("partials/header") %>
 
-        <main class="dashboard-container">
-            <p>Hello <%= username %></p>
+        <main class="container mt-4">
+            <h2 class="mb-4">Welcome, <%= username %>!</h2>
 
             <% if (posts.length > 0) { %>
-            <div class="post-list">
+            <div class="row">
                 <% posts.forEach(post => { %>
-                <article class="post-card">
-                    <h3>
-                        <a href="/posts/<%= post.id %>"><%= post.title %></a>
-                    </h3>
-                    <p class="post-meta">by <strong><%= post.username
-                            %></strong> on <%= post.createDate %></p>
-                    <p class="post-content-preview">
-                        <%= post.content.length > 100 ?
-                        post.content.substring(0, 100) + "..." : post.content %>
-                    </p>
-                </article>
+                <div class="col-md-8 mx-auto">
+                    <div class="card border border-dark shadow-sm mb-4">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <img
+                                    src="<%= user.profileImage || '/images/default-avatar.png' %>"
+                                    alt="User Avatar"
+                                    class="rounded-circle border border-dark"
+                                    width="40"
+                                    height="40"
+                                    style="object-fit: cover; aspect-ratio: 1/1;">
 
+                                <div class="ps-2">
+                                    <strong><%= post.author.username %></strong>
+                                    <small class="text-muted d-block"><%= new
+                                        Date(post.createDate).toLocaleDateString()
+                                        %></small>
+                                </div>
+                            </div>
+
+                            <h5 class="card-title">
+                                <a href="/posts/<%= post.id %>"
+                                    class="text-dark text-decoration-none"><%=
+                                    post.title %></a>
+                            </h5>
+
+                            <p class="card-text">
+                                <%= post.content.length > 100 ?
+                                post.content.substring(0, 100) + "..." :
+                                post.content %>
+                            </p>
+
+                            <div class="d-flex justify-content-between">
+                                <a href="/posts/<%= post.id %>"
+                                    class="btn btn-sm btn-outline-primary">Read
+                                    More</a>
+
+                                <% if (post.authorid == user?.userid) { %>
+                                <div>
+                                    <a href="/edit-post/<%= post.id %>"
+                                        class="btn btn-sm btn-warning">Edit</a>
+                                    <form action="/delete-post/<%= post.id %>"
+                                        method="POST" class="d-inline">
+                                        <button type="submit"
+                                            class="btn btn-sm btn-danger">Delete</button>
+                                    </form>
+                                </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <% }); %>
             </div>
             <% } else { %>
-            <p class="no-posts">No posts available yet.</p>
+            <p class="text-center text-muted">No posts available yet.</p>
             <% } %>
         </main>
 
