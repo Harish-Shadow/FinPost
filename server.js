@@ -11,8 +11,8 @@ const path = require("path");
 const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 5001;
-const User = require("./models/User"); // ✅ Import only
-const Post = require("./models/Post"); // Ensure Post model exists in models/Post.js
+const User = require("./models/user"); // ✅ Import only
+const Post = require("./models/post"); // Ensure Post model exists in models/Post.js
 
 // Ensure Upload Directory Exists
 const uploadDir = "./public/uploads/";
