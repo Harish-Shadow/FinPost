@@ -11,7 +11,8 @@ const path = require("path");
 const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 5001;
-const User = require("../models/User"); // Ensure you have a User model
+const User = require("../models/User"); // ✅ Import only
+const Post = require("../models/Post"); // Ensure Post model exists in models/Post.js
 
 // Ensure Upload Directory Exists
 const uploadDir = "./public/uploads/";
@@ -24,25 +25,6 @@ mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
-
-// Define User Schema
-const userSchema = new mongoose.Schema({
-  username: { type: String, unique: true, required: true },
-  password: { type: String, required: true },
-  profileImage: { type: String, default: "/images/default-avatar.png" }, // ✅ Added profileImage field
-});
-
-const User = mongoose.model("User", userSchema);
-
-// Define Post Schema
-const postSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  content: { type: String, required: true },
-  createDate: { type: Date, default: Date.now },
-  author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-});
-
-const Post = mongoose.model("Post", postSchema);
 
 // Multer Storage Configuration
 const storage = multer.diskStorage({
@@ -92,7 +74,7 @@ app.get("/", (req, res) => {
   res.render("index", { username: null, errors: [], user: req.user });
 });
 
-app.get("/register", (req, res) => res.render("index", { errors: [], user: req.user }));
+app.get("/register", (req, res) => res.render("register", { errors: [], user: req.user }));
 app.get("/login", (req, res) => res.render("login", { errors: [], user: req.user }));
 app.get("/logout", (req, res) => {
   res.clearCookie("overSimpleApp");
@@ -105,10 +87,10 @@ function mustBeLoggedIn(req, res, next) {
   next();
 }
 
-// Dashboard Route (Fixed)
+// Dashboard Route
 app.get("/dashboard", mustBeLoggedIn, async (req, res) => {
   const posts = await Post.find({ author: req.user._id })
-    .populate("author", "username profileImage") // ✅ Includes profileImage
+    .populate("author", "username profileImage")
     .sort({ createDate: -1 });
 
   res.render("dashboard", { username: req.user.username, posts, user: req.user });
@@ -127,28 +109,9 @@ app.post("/create-post", mustBeLoggedIn, async (req, res) => {
   res.redirect("/dashboard");
 });
 
-app.post("/update-profile", async (req, res) => {
-  try {
-    const { username, nickname } = req.body;
-    const userId = req.session.userId; // Assuming user session stores their ID
-
-    if (!userId) {
-      return res.status(401).send("Unauthorized: Please log in");
-    }
-
-    // Find the user and update their profile
-    await User.findByIdAndUpdate(userId, { username, nickname });
-
-    // Redirect to profile page after update
-    res.redirect("/profile");
-  } catch (error) {
-    console.error("Error updating profile:", error);
-    res.status(500).send("Server Error");
-  }
-});
 // View Single Post
 app.get("/posts/:id", async (req, res) => {
-  const post = await Post.findById(req.params.id).populate("author", "username profileImage"); // ✅ Includes profileImage
+  const post = await Post.findById(req.params.id).populate("author", "username profileImage");
   if (!post) return res.status(404).send("Post not found.");
   res.render("single-posts", { post, user: req.user });
 });
@@ -186,10 +149,8 @@ app.post("/delete-post/:id", mustBeLoggedIn, async (req, res) => {
 app.post("/upload-profile-image", mustBeLoggedIn, upload.single("profileImage"), async (req, res) => {
   if (!req.file) return res.redirect("/profile");
 
-  // Update DB
   await User.findByIdAndUpdate(req.user._id, { profileImage: "/uploads/" + req.file.filename });
 
-  // Update Session Data
   req.user.profileImage = "/uploads/" + req.file.filename;
 
   res.redirect("/profile");
