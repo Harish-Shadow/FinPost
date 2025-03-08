@@ -153,6 +153,32 @@ app.post("/register", async (req, res) => {
     res.render("register", { errors: ["Username already exists"], user: req.user });
   }
 });
+// Login User
+app.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.render("login", { errors: ["All fields required"], user: req.user });
+    }
+
+    // Find user by username
+    const user = await User.findOne({ username });
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      return res.render("login", { errors: ["Invalid username or password"], user: req.user });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ userid: user._id }, process.env.JWTSECRET, { expiresIn: "7d" });
+    
+    // Set cookie with JWT
+    res.cookie("overSimpleApp", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+    
+    res.redirect("/dashboard");
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 // Start Server
 app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
