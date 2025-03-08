@@ -14,6 +14,8 @@ const PORT = process.env.PORT || 5001;
 const User = require("./models/user"); // ✅ Import only
 const Post = require("./models/post"); // Ensure Post model exists in models/Post.js
 
+
+// fix
 // Ensure Upload Directory Exists
 const uploadDir = "./public/uploads/";
 if (!fs.existsSync(uploadDir)) {
