@@ -11,28 +11,40 @@ const path = require("path");
 const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 5001;
-const User = require("./models/user"); // ✅ Import only
-const Post = require("./models/post"); // Ensure Post model exists in models/Post.js
 
+ // Connect to MongoDB
+ mongoose.connect(process.env.MONGO_URI);
 
-// fix
+// Define User Schema
+const userSchema = new mongoose.Schema({
+  username: String,
+  password: String,
+  profileImage: String,
+});
+const User = mongoose.model("User", userSchema);
+
+// Define Post Schema
+const postSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+  author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  createDate: { type: Date, default: Date.now },
+});
+const Post = mongoose.model("Post", postSchema);
+
 // Ensure Upload Directory Exists
 const uploadDir = "./public/uploads/";
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI);
-
 // Multer Storage Configuration
 const storage = multer.diskStorage({
-  destination: "./public/uploads/",
+  destination: uploadDir,
   filename: (req, file, cb) => {
     cb(null, req.user._id + path.extname(file.originalname));
   },
 });
-
 const upload = multer({ storage });
 
 // Middleware
@@ -50,9 +62,7 @@ app.use(async (req, res, next) => {
       allowedAttributes: { a: ["href"], img: ["src", "alt"] },
     });
   };
-
   res.locals.errors = [];
-
   try {
     if (req.cookies.overSimpleApp) {
       const decoded = jwt.verify(req.cookies.overSimpleApp, process.env.JWTSECRET);
@@ -61,7 +71,6 @@ app.use(async (req, res, next) => {
   } catch (error) {
     req.user = null;
   }
-
   res.locals.username = req.user ? req.user.username : null;
   res.locals.user = req.user || null;
   next();
@@ -88,10 +97,7 @@ function mustBeLoggedIn(req, res, next) {
 
 // Dashboard Route
 app.get("/dashboard", mustBeLoggedIn, async (req, res) => {
-  const posts = await Post.find({ author: req.user._id })
-    .populate("author", "username profileImage")
-    .sort({ createDate: -1 });
-
+  const posts = await Post.find({ author: req.user._id }).populate("author", "username profileImage").sort({ createDate: -1 });
   res.render("dashboard", { username: req.user.username, posts, user: req.user });
 });
 
@@ -99,11 +105,9 @@ app.get("/dashboard", mustBeLoggedIn, async (req, res) => {
 app.get("/create-post", mustBeLoggedIn, (req, res) => {
   res.render("create-post", { errors: [], user: req.user });
 });
-
 app.post("/create-post", mustBeLoggedIn, async (req, res) => {
   if (!req.body.title || !req.body.content)
     return res.render("create-post", { errors: ["All fields are required"], user: req.user });
-
   await new Post({ title: req.body.title, content: req.body.content, author: req.user._id }).save();
   res.redirect("/dashboard");
 });
@@ -113,26 +117,6 @@ app.get("/posts/:id", async (req, res) => {
   const post = await Post.findById(req.params.id).populate("author", "username profileImage");
   if (!post) return res.status(404).send("Post not found.");
   res.render("single-posts", { post, user: req.user });
-});
-
-// Edit Post
-app.get("/edit-post/:id", mustBeLoggedIn, async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  if (!post || post.author.toString() !== req.user._id.toString())
-    return res.status(403).send("Unauthorized.");
-  res.render("edit-post", { post, user: req.user });
-});
-
-// Update Post
-app.post("/update-post/:id", mustBeLoggedIn, async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  if (!post || post.author.toString() !== req.user._id.toString())
-    return res.status(403).send("Unauthorized.");
-
-  post.title = req.body.title;
-  post.content = req.body.content;
-  await post.save();
-  res.redirect(`/posts/${req.params.id}`);
 });
 
 // Delete Post
@@ -147,11 +131,8 @@ app.post("/delete-post/:id", mustBeLoggedIn, async (req, res) => {
 // Upload Profile Picture
 app.post("/upload-profile-image", mustBeLoggedIn, upload.single("profileImage"), async (req, res) => {
   if (!req.file) return res.redirect("/profile");
-
   await User.findByIdAndUpdate(req.user._id, { profileImage: "/uploads/" + req.file.filename });
-
   req.user.profileImage = "/uploads/" + req.file.filename;
-
   res.redirect("/profile");
 });
 
@@ -164,7 +145,6 @@ app.get("/profile", mustBeLoggedIn, (req, res) => {
 app.post("/register", async (req, res) => {
   if (!req.body.username || !req.body.password)
     return res.render("register", { errors: ["All fields required"], user: req.user });
-
   const hashedPassword = bcrypt.hashSync(req.body.password, 10);
   try {
     await new User({ username: req.body.username, password: hashedPassword }).save();
@@ -172,17 +152,6 @@ app.post("/register", async (req, res) => {
   } catch (error) {
     res.render("register", { errors: ["Username already exists"], user: req.user });
   }
-});
-
-// Login User
-app.post("/login", async (req, res) => {
-  const user = await User.findOne({ username: req.body.username });
-  if (!user || !bcrypt.compareSync(req.body.password, user.password))
-    return res.render("login", { errors: ["Invalid credentials"], user: req.user });
-
-  const token = jwt.sign({ userid: user._id, username: user.username }, process.env.JWTSECRET, { expiresIn: "7d" });
-  res.cookie("overSimpleApp", token, { httpOnly: true });
-  res.redirect("/dashboard");
 });
 
 // Start Server
