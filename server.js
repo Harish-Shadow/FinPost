@@ -82,7 +82,7 @@ app.get("/", (req, res) => {
   res.render("index", { username: null, errors: [], user: req.user });
 });
 
-app.get("/register", (req, res) => res.render("register", { errors: [], user: req.user }));
+app.get("/register", (req, res) => res.render("index", { errors: [], user: req.user }));
 app.get("/login", (req, res) => res.render("login", { errors: [], user: req.user }));
 app.get("/logout", (req, res) => {
   res.clearCookie("overSimpleApp");
