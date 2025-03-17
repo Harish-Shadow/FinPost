@@ -12,8 +12,8 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 5001;
 
- // Connect to MongoDB
- mongoose.connect(process.env.MONGO_URI);
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI);
 
 // Define User Schema
 const userSchema = new mongoose.Schema({
@@ -44,6 +44,8 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     cb(null, req.user._id + path.extname(file.originalname));
   },
+
+  
 });
 const upload = multer({ storage });
 
@@ -114,10 +116,61 @@ app.post("/create-post", mustBeLoggedIn, async (req, res) => {
 
 // View Single Post
 app.get("/posts/:id", async (req, res) => {
-  const post = await Post.findById(req.params.id).populate("author", "username profileImage");
-  if (!post) return res.status(404).send("Post not found.");
-  res.render("single-posts", { post, user: req.user });
+  try {
+    const post = await Post.findById(req.params.id).populate("author", "username profileImage");
+    if (!post) return res.status(404).send("Post not found.");
+
+    const postUrl = `${req.protocol}://${req.get("host")}/posts/${post._id}`; // Full post URL
+    const postId = post._id.toString(); // Ensure `postId` is a string
+
+    res.render("single-posts", { post, user: req.user, postUrl, postId }); // ✅ Pass `postId`
+  } catch (error) {
+    console.error("Error fetching post:", error);
+    res.status(500).send("Server Error");
+  }
 });
+
+
+// Edit Post - Render Edit Form
+app.get("/edit-post/:id", mustBeLoggedIn, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post || post.author.toString() !== req.user._id.toString()) {
+      return res.status(403).send("Unauthorized.");
+    }
+    res.render("edit-post", { post, user: req.user });
+  } catch (error) {
+    console.error("Error fetching post:", error);
+    res.status(500).send("Server Error");
+  }
+});
+
+// Edit Post - Handle Update Logic
+app.post("/edit-post/:id", mustBeLoggedIn, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post || post.author.toString() !== req.user._id.toString()) {
+      return res.status(403).send("Unauthorized.");
+    }
+    
+    // Validate input
+    if (!req.body.title || !req.body.content) {
+      return res.render("edit-post", { errors: ["All fields are required"], post, user: req.user });
+    }
+
+    // Update post
+    post.title = req.body.title;
+    post.content = req.body.content;
+    await post.save();
+
+    res.redirect("/dashboard");
+  } catch (error) {
+    console.error("Error updating post:", error);
+    res.status(500).send("Server Error");
+  }
+});
+
+
 
 // Delete Post
 app.post("/delete-post/:id", mustBeLoggedIn, async (req, res) => {
@@ -126,6 +179,30 @@ app.post("/delete-post/:id", mustBeLoggedIn, async (req, res) => {
     return res.status(403).send("Unauthorized.");
   await post.deleteOne();
   res.redirect("/dashboard");
+});
+// Update Post - Handle Post Update Logic
+app.post("/update-post/:id", mustBeLoggedIn, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post || post.author.toString() !== req.user._id.toString()) {
+      return res.status(403).send("Unauthorized.");
+    }
+
+    // Validate input
+    if (!req.body.title || !req.body.content) {
+      return res.render("edit-post", { errors: ["All fields are required"], post, user: req.user });
+    }
+
+    // Update post details
+    post.title = req.body.title;
+    post.content = req.body.content;
+    await post.save();
+
+    res.redirect("/dashboard");
+  } catch (error) {
+    console.error("Error updating post:", error);
+    res.status(500).send("Server Error");
+  }
 });
 
 // Upload Profile Picture
@@ -169,10 +246,10 @@ app.post("/login", async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign({ userid: user._id }, process.env.JWTSECRET, { expiresIn: "7d" });
-    
+
     // Set cookie with JWT
     res.cookie("overSimpleApp", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
-    
+
     res.redirect("/dashboard");
   } catch (error) {
     console.error("Login Error:", error);

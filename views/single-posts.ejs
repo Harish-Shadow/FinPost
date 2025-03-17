@@ -4,33 +4,208 @@
 
     <body>
         <%- include("partials/header") %>
+        <link rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
 
         <main>
-            <h1><%= post.title %></h1>
+            <div
+                style="display: flex; justify-content: space-between; align-items: center;">
+                <h1><%= post.title %></h1>
+
+                <!-- Share Button -->
+                <div class="share-container">
+                    <button class="button share-btn">Share</button>
+                    <div class="share-options ">
+                        <!-- WhatsApp Share Button -->
+                        <a
+                            href="https://wa.me/?text=<%= encodeURIComponent(post.title + ' - ' + postUrl) %>"
+                            target="_blank"
+                            class="circle-button whatsapp">📱</a>
+
+                        <!-- Discord Share Button -->
+                        <a
+                            href="https://discord.com/channels/@me?message=<%= encodeURIComponent(post.title + ' - ' + postUrl) %>"
+                            target="_blank" class="circle-button discord">💬</a>
+
+                        <!-- Copy Link Button -->
+                        <button class="circle-button copy-btn">📋</button>
+                    </div>
+                </div>
+            </div>
 
             <article>
                 <%
                 let postDate = new Date(post.createDate || 0);
-                let formattedDate = isNaN(postDate) ? "Unknown Date" : 
-                `${postDate.getMonth() + 1}/${postDate.getDate()}/${postDate.getFullYear()}`;
+                let formattedDate = isNaN(postDate) ? "Unknown Date" :
+                `${postDate.getMonth() +
+                1}/${postDate.getDate()}/${postDate.getFullYear()}`;
                 %>
 
-                <small>Posted by <%= post.author?.username || "Unknown" %> on <%= formattedDate %></small>
+                <small>Posted by <%= post.author?.username || "Unknown" %> on
+                    <%= formattedDate %></small>
 
                 <div>
-                    <%- post.content ? filterUserHTML(post.content) : "No content available." %>
+                    <%- post.content ? filterUserHTML(post.content) :
+                    "No content available." %>
                 </div>
             </article>
 
-            <% if (post.authorid == user?.userid) { %>
-                <a href="/edit-post/<%= post.id %>" class="button">Edit post</a>
-
-                <form style="display: inline;" action="/delete-post/<%= post.id %>" method="POST">
-                    <button type="submit" class="button">Delete post</button>
+            <!-- Owner Controls (Edit/Delete Post) -->
+            <div class="owner-controls">
+                <a href="/edit-post/<%= post._id %>" class="button">Edit
+                    Post</a>
+                <form style="display: inline;"
+                    action="/delete-post/<%= post._id %>" method="POST">
+                    <button type="submit" class="button">Delete Post</button>
                 </form>
-            <% } %>
+            </div>
         </main>
 
         <%- include("partials/footer") %>
+        <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const postAuthorId = "<%= post.author._id %>";  
+                const loggedInUserId = "<%= user ? user._id : '' %>";  
+        
+                if (postAuthorId !== loggedInUserId) {
+                    document.querySelectorAll(".owner-controls").forEach((el) => el.remove());
+                }
+        
+                // ✅ Get the post URL from the server-side variable
+                const fullPostUrl = "<%= postUrl %>";  
+        
+                // Share Button Logic
+                const shareBtn = document.querySelector(".share-btn");
+                const shareOptions = document.querySelector(".share-options");
+                const copyBtn = document.querySelector(".copy-btn");
+        
+                shareBtn.addEventListener("click", function () {
+                    shareOptions.classList.toggle("show");
+                });
+        
+                copyBtn.addEventListener("click", function () {
+    navigator.clipboard.writeText(fullPostUrl)
+        .then(() => {
+            Toastify({
+                text: "🔗 Link copied to clipboard!",
+                duration: 3000, // Auto close after 3 seconds
+                gravity: "top", // Position at the top
+                position: "right", // Align to the right
+                close: true, // Enable close button (❌)
+                stopOnFocus: true, // Pause when hovering
+                style: {
+                    background: "#4CAF50", // Green color
+                    color: "white",
+                    borderRadius: "8px",
+                    padding: "10px",
+                    fontSize: "14px",
+                    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)"
+                }
+            }).showToast();
+        })
+        .catch(() => {
+            Toastify({
+                text: "❌ Failed to copy link!",
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                stopOnFocus: true,
+                style: {
+                    background: "#ff0000",
+                    color: "white",
+                    borderRadius: "8px",
+                    padding: "10px",
+                    fontSize: "14px",
+                    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)"
+                }
+            }).showToast();
+        });
+});
+
+        
+                document.addEventListener("click", function (event) {
+                    if (!shareBtn.contains(event.target) && !shareOptions.contains(event.target)) {
+                        shareOptions.classList.remove("show");
+                    }
+                });
+            });
+        </script>
+
+        <style>
+    .share-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    /* Share button */
+    .share-btn {
+        background-color: #007bff;
+        color: white;
+        padding: 5px 10px;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+
+    /* Share options container */
+    .share-options {
+        display: none;
+        position: absolute;
+        top: 35px;
+        right: 0;
+
+        
+      
+        padding: 10px;
+        
+        z-index: 1000;
+    }
+
+    .share-options.show {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    /* Circular buttons */
+    .circle-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        font-size: 20px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    /* WhatsApp Button */
+    .whatsapp {
+        background-color: #25D366;
+        color: white;
+    }
+
+    /* Discord Button */
+    .discord {
+        background-color: #5865F2;
+        color: white;
+    }
+
+    /* Copy Link Button */
+    .copy-btn {
+        background-color: #333;
+        color: white;
+    }
+
+    /* Hover effect */
+    .circle-button:hover {
+        opacity: 0.8;
+    }
+</style>
+
     </body>
 </html>

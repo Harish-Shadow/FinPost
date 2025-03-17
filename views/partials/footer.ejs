@@ -1,3 +1,141 @@
+<!-- Chatbot Button -->
+<button id="chatbot-btn">
+    <i class="fas fa-comments"></i>
+</button>
+
+<!-- Chatbox -->
+<div id="chatbox">
+    <div id="chat-header">
+        <span>AI Chatbot</span>
+        <button id="close-chat"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="chat-content">
+        <p>Welcome! Ask me anything.</p>
+    </div>
+    <div id="chat-input">
+        <input type="text" id="user-input" placeholder="Type a message..." />
+        <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+    </div>
+</div>
+
 <footer>
     <small>&copy; FinPost 2025</small>
 </footer>
+<style>
+/* Chatbot Button */
+#chatbot-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+#chatbot-btn:hover {
+    background: #e68900;
+}
+
+/* Chatbox */
+#chatbox {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 300px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Chat Header */
+#chat-header {
+    background: #ff9800;
+    color: white;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Close Button */
+#close-chat {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+/* Chat Content */
+#chat-content {
+    padding: 10px;
+    height: 200px;
+    overflow-y: auto;
+    font-size: 14px;
+}
+
+/* Chat Input */
+#chat-input {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+}
+
+#chat-input input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+#send-btn {
+    background: #ff9800;
+    color: white;
+    border: none;
+    padding: 8px;
+    margin-left: 5px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+#send-btn:hover {
+    background: #e68900;
+}
+</style>
+<script>
+    document.getElementById("chatbot-btn").addEventListener("click", function () {
+        document.getElementById("chatbox").style.display = "flex";
+    });
+    
+    document.getElementById("close-chat").addEventListener("click", function () {
+        document.getElementById("chatbox").style.display = "none";
+    });
+    
+    document.getElementById("send-btn").addEventListener("click", function () {
+        let userInput = document.getElementById("user-input").value;
+        if (userInput.trim() === "") return;
+    
+        let chatContent = document.getElementById("chat-content");
+        let userMessage = `<p><strong>You:</strong> ${userInput}</p>`;
+        chatContent.innerHTML += userMessage;
+    
+        // Dummy bot response (You can replace this with an API call)
+        let botResponse = `<p><strong>Bot:</strong> Sorry, I don't understand yet!</p>`;
+        setTimeout(() => {
+            chatContent.innerHTML += botResponse;
+            chatContent.scrollTop = chatContent.scrollHeight;
+        }, 1000);
+    
+        document.getElementById("user-input").value = "";
+        chatContent.scrollTop = chatContent.scrollHeight;
+    });
+    </script>
